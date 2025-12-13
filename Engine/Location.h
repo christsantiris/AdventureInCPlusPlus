@@ -2,6 +2,7 @@
 #define LOCATION_H
 
 #include <string>
+#include "Monster.h"
 
 class Location {
 public:
@@ -11,6 +12,7 @@ public:
     Location* south;
     Location* east;
     Location* west;
+    Monster* monster;
     
     Location(std::string locName, std::string locDesc);
     void Display();

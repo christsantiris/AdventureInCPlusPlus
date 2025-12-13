@@ -8,9 +8,14 @@ Location::Location(std::string locName, std::string locDesc) {
     south = nullptr;
     east = nullptr;
     west = nullptr;
+    monster = nullptr;
 }
 
 void Location::Display() {
     std::cout << "\n=== " << name << " ===" << std::endl;
     std::cout << description << std::endl;
+    
+    if (monster && monster->IsAlive()) {
+        monster->Display();
+    }
 }
