@@ -1,4 +1,5 @@
 #include "Location.h"
+#include "UI.h"
 #include <iostream>
 
 Location::Location(std::string locName, std::string locDesc) {
@@ -12,10 +13,11 @@ Location::Location(std::string locName, std::string locDesc) {
 }
 
 void Location::Display() {
-    std::cout << "\n=== " << name << " ===" << std::endl;
-    std::cout << description << std::endl;
+    UI::PrintHeader(name);
+    std::cout << UI::CYAN << description << UI::RESET << "\n";
     
     if (monster && monster->IsAlive()) {
+        std::cout << "\n";
         monster->Display();
     }
 }

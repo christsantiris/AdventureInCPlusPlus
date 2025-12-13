@@ -1,4 +1,5 @@
 #include "Player.h"
+#include "UI.h"
 #include <iostream>
 
 Player::Player(std::string playerName) {
@@ -8,8 +9,9 @@ Player::Player(std::string playerName) {
 }
 
 void Player::DisplayStats() {
-    std::cout << "\n=== Player Stats ===" << std::endl;
-    std::cout << "Name: " << name << std::endl;
-    std::cout << "HP: " << hitPoints << std::endl;
-    std::cout << "Gold: " << gold << std::endl;
+    std::cout << "\n" << UI::GREEN << UI::BOLD << "═══ PLAYER STATS ═══" << UI::RESET << std::endl;
+    std::cout << UI::CYAN << "Name: " << UI::RESET << name << std::endl;
+    std::cout << UI::GREEN << "HP:   " << UI::RESET << hitPoints << std::endl;
+    std::cout << UI::YELLOW << "Gold: " << UI::RESET << gold << std::endl;
+    UI::PrintSeparator();
 }

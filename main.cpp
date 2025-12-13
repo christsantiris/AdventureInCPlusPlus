@@ -5,26 +5,27 @@
 #include "Player.h"
 #include "Location.h"
 #include "Monster.h"
+#include "UI.h"
 
 int main() {
     srand(time(0)); // Seed random number generator
     
-    std::cout << "Adventures in C++" << std::endl;
-    std::cout << "Welcome Player!" << std::endl;
-    std::cout << "\nWhat is your name? ";
+    UI::ClearScreen();
+    UI::PrintHeader("ADVENTURE RPG");
     
+    std::cout << "\n" << UI::CYAN << "What is your name? " << UI::RESET;
     std::string playerName;
     std::getline(std::cin, playerName);
     
     Player player(playerName);
     
     // Create locations
-    Location home("Home", "Your house. Today is the day. You are embarking on the quest you have been planning.");
-    Location townSquare("Town Square", "There is a lot of activity. You see a fountain and several shops.");
+    Location home("Home", "Your cozy house. You're bored and ready for adventure.");
+    Location townSquare("Town Square", "The bustling center of town. You see a fountain.");
     Location forest("Forest", "A dark forest. You hear strange noises.");
     
     // Create a monster
-    Monster rat("Giant Rat", 5, 3, 5);
+    Monster rat("Rat", 5, 3, 5);
     
     // Link locations together
     home.north = &townSquare;
@@ -37,18 +38,20 @@ int main() {
     
     // Start at home
     Location* currentLocation = &home;
-    currentLocation->Display();
-    player.DisplayStats();
     
     // Game loop
     bool playing = true;
     while (playing) {
+        UI::ClearScreen();
+        currentLocation->Display();
+        player.DisplayStats();
+        
         // Check if there's a monster to fight
         if (currentLocation->monster && currentLocation->monster->IsAlive()) {
-            std::cout << "\n*** COMBAT ***" << std::endl;
-            std::cout << "F - Fight" << std::endl;
-            std::cout << "R - Run Away" << std::endl;
-            std::cout << "Choice: ";
+            std::cout << "\n" << UI::RED << UI::BOLD << "═══ COMBAT ═══" << UI::RESET << std::endl;
+            std::cout << UI::YELLOW << "F" << UI::RESET << " - Fight\n";
+            std::cout << UI::YELLOW << "R" << UI::RESET << " - Run Away\n";
+            std::cout << "\n" << UI::CYAN << "Choice: " << UI::RESET;
             
             char combatChoice;
             std::cin >> combatChoice;
@@ -57,84 +60,98 @@ int main() {
                 // Player attacks
                 int damage = rand() % 5 + 1; // 1-5 damage
                 currentLocation->monster->hitPoints -= damage;
-                std::cout << "You hit the " << currentLocation->monster->name 
-                         << " for " << damage << " damage!" << std::endl;
+                
+                UI::ClearScreen();
+                currentLocation->Display();
+                UI::PrintCombatMessage("You hit the " + currentLocation->monster->name + 
+                                     " for " + std::to_string(damage) + " damage!");
                 
                 if (currentLocation->monster->IsAlive()) {
                     // Monster attacks back
                     int monsterDamage = rand() % currentLocation->monster->maxDamage + 1;
                     player.hitPoints -= monsterDamage;
-                    std::cout << "The " << currentLocation->monster->name 
-                             << " hits you for " << monsterDamage << " damage!" << std::endl;
+                    UI::PrintCombatMessage("The " + currentLocation->monster->name + 
+                                         " hits you for " + std::to_string(monsterDamage) + " damage!");
                     
                     if (player.hitPoints <= 0) {
-                        std::cout << "\n*** YOU DIED! ***" << std::endl;
-                        std::cout << "Game Over!" << std::endl;
+                        std::cout << "\n";
+                        UI::PrintErrorMessage("YOU DIED!");
+                        std::cout << UI::RED << UI::BOLD << "\nGAME OVER!" << UI::RESET << std::endl;
                         playing = false;
                     }
                 } else {
-                    std::cout << "\nYou defeated the " << currentLocation->monster->name << "!" << std::endl;
+                    std::cout << "\n";
+                    UI::PrintSuccessMessage("You defeated the " + currentLocation->monster->name + "!");
                     player.gold += currentLocation->monster->rewardGold;
-                    std::cout << "You found " << currentLocation->monster->rewardGold << " gold!" << std::endl;
+                    UI::PrintSuccessMessage("You found " + std::to_string(currentLocation->monster->rewardGold) + " gold!");
                 }
                 
                 player.DisplayStats();
+                std::cout << "\n" << UI::CYAN << "Press Enter to continue..." << UI::RESET;
+                std::cin.ignore();
+                std::cin.get();
                 continue;
             } else if (combatChoice == 'R' || combatChoice == 'r') {
-                std::cout << "You run away!" << std::endl;
+                UI::PrintErrorMessage("You run away!");
                 currentLocation = &home;
-                currentLocation->Display();
-                player.DisplayStats();
+                std::cout << "\n" << UI::CYAN << "Press Enter to continue..." << UI::RESET;
+                std::cin.ignore();
+                std::cin.get();
                 continue;
             }
         }
         
         // Normal movement
-        std::cout << "\nWhere do you want to go?" << std::endl;
-        if (currentLocation->north) std::cout << "N - North" << std::endl;
-        if (currentLocation->south) std::cout << "S - South" << std::endl;
-        if (currentLocation->east) std::cout << "E - East" << std::endl;
-        if (currentLocation->west) std::cout << "W - West" << std::endl;
-        std::cout << "Q - Quit" << std::endl;
+        std::cout << "\n" << UI::GREEN << UI::BOLD << "═══ ACTIONS ═══" << UI::RESET << std::endl;
+        if (currentLocation->north) std::cout << UI::YELLOW << "N" << UI::RESET << " - North\n";
+        if (currentLocation->south) std::cout << UI::YELLOW << "S" << UI::RESET << " - South\n";
+        if (currentLocation->east) std::cout << UI::YELLOW << "E" << UI::RESET << " - East\n";
+        if (currentLocation->west) std::cout << UI::YELLOW << "W" << UI::RESET << " - West\n";
+        std::cout << UI::YELLOW << "Q" << UI::RESET << " - Quit\n";
         
-        std::cout << "\nChoice: ";
+        std::cout << "\n" << UI::CYAN << "Choice: " << UI::RESET;
         char choice;
         std::cin >> choice;
         
         if (choice == 'N' || choice == 'n') {
             if (currentLocation->north) {
                 currentLocation = currentLocation->north;
-                currentLocation->Display();
-                player.DisplayStats();
             } else {
-                std::cout << "You can't go that way!" << std::endl;
+                UI::PrintErrorMessage("You can't go that way!");
+                std::cout << "\n" << UI::CYAN << "Press Enter to continue..." << UI::RESET;
+                std::cin.ignore();
+                std::cin.get();
             }
         } else if (choice == 'S' || choice == 's') {
             if (currentLocation->south) {
                 currentLocation = currentLocation->south;
-                currentLocation->Display();
-                player.DisplayStats();
             } else {
-                std::cout << "You can't go that way!" << std::endl;
+                UI::PrintErrorMessage("You can't go that way!");
+                std::cout << "\n" << UI::CYAN << "Press Enter to continue..." << UI::RESET;
+                std::cin.ignore();
+                std::cin.get();
             }
         } else if (choice == 'E' || choice == 'e') {
             if (currentLocation->east) {
                 currentLocation = currentLocation->east;
-                currentLocation->Display();
-                player.DisplayStats();
             } else {
-                std::cout << "You can't go that way!" << std::endl;
+                UI::PrintErrorMessage("You can't go that way!");
+                std::cout << "\n" << UI::CYAN << "Press Enter to continue..." << UI::RESET;
+                std::cin.ignore();
+                std::cin.get();
             }
         } else if (choice == 'W' || choice == 'w') {
             if (currentLocation->west) {
                 currentLocation = currentLocation->west;
-                currentLocation->Display();
-                player.DisplayStats();
             } else {
-                std::cout << "You can't go that way!" << std::endl;
+                UI::PrintErrorMessage("You can't go that way!");
+                std::cout << "\n" << UI::CYAN << "Press Enter to continue..." << UI::RESET;
+                std::cin.ignore();
+                std::cin.get();
             }
         } else if (choice == 'Q' || choice == 'q') {
-            std::cout << "Thanks for playing!" << std::endl;
+            UI::ClearScreen();
+            UI::PrintHeader("THANKS FOR PLAYING!");
             playing = false;
         }
     }
