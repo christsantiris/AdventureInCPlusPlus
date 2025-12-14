@@ -1,160 +1,237 @@
-#include <iostream>
+#include <SDL2/SDL.h>
+#include "imgui.h"
+#include "imgui_impl_sdl2.h"
+#include "imgui_impl_sdlrenderer2.h"
 #include <string>
 #include <cstdlib>
 #include <ctime>
 #include "Player.h"
 #include "Location.h"
 #include "Monster.h"
-#include "UI.h"
 
-int main() {
-    srand(time(0)); // Seed random number generator
+int main(int argc, char* argv[]) {
+    srand(time(0));
     
-    UI::ClearScreen();
-    UI::PrintHeader("ADVENTURE RPG");
+    // Initialize SDL
+    if (SDL_Init(SDL_INIT_VIDEO) != 0) {
+        return -1;
+    }
     
-    std::cout << "\n" << UI::CYAN << "What is your name? " << UI::RESET;
-    std::string playerName;
-    std::getline(std::cin, playerName);
+    // Create window
+    SDL_Window* window = SDL_CreateWindow(
+        "Adventure RPG",
+        SDL_WINDOWPOS_CENTERED,
+        SDL_WINDOWPOS_CENTERED,
+        1280,
+        720,
+        SDL_WINDOW_SHOWN
+    );
     
-    Player player(playerName);
+    // Create renderer
+    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_ACCELERATED);
+    
+    // Setup ImGui
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    ImGui::StyleColorsDark();
+    
+    // Setup Platform/Renderer backends
+    ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
+    ImGui_ImplSDLRenderer2_Init(renderer);
+    
+    // Game setup
+    std::string playerName = "Hero";
+    bool nameEntered = false;
+    char nameBuffer[128] = "";
+    
+    Player* player = nullptr;
     
     // Create locations
     Location home("Home", "Your cozy house. You're bored and ready for adventure.");
-    Location townSquare("Town Square", "The bustling center of town. You see a fountain.");
+    Location townSquare("Town Square", "The bustling center of town. You see a fountain and some shops.");
     Location forest("Forest", "A dark forest. You hear strange noises.");
     
-    // Create a monster
+    // Create monster
     Monster rat("Rat", 5, 3, 5);
     
-    // Link locations together
+    // Link locations
     home.north = &townSquare;
     townSquare.south = &home;
     townSquare.east = &forest;
     forest.west = &townSquare;
-    
-    // Put monster in forest
     forest.monster = &rat;
     
-    // Start at home
     Location* currentLocation = &home;
+    std::string combatLog = "";
     
-    // Game loop
-    bool playing = true;
-    while (playing) {
-        UI::ClearScreen();
-        currentLocation->Display();
-        player.DisplayStats();
+    // Main loop
+    bool running = true;
+    SDL_Event event;
+    
+    while (running) {
+        // Handle events
+        while (SDL_PollEvent(&event)) {
+            ImGui_ImplSDL2_ProcessEvent(&event);
+            if (event.type == SDL_QUIT) {
+                running = false;
+            }
+        }
         
-        // Check if there's a monster to fight
-        if (currentLocation->monster && currentLocation->monster->IsAlive()) {
-            std::cout << "\n" << UI::RED << UI::BOLD << "═══ COMBAT ═══" << UI::RESET << std::endl;
-            std::cout << UI::YELLOW << "F" << UI::RESET << " - Fight\n";
-            std::cout << UI::YELLOW << "R" << UI::RESET << " - Run Away\n";
-            std::cout << "\n" << UI::CYAN << "Choice: " << UI::RESET;
+        // Start ImGui frame
+        ImGui_ImplSDLRenderer2_NewFrame();
+        ImGui_ImplSDL2_NewFrame();
+        ImGui::NewFrame();
+        
+        // Name entry screen
+        if (!nameEntered) {
+            ImGui::SetNextWindowPos(ImVec2(440, 300));
+            ImGui::SetNextWindowSize(ImVec2(400, 150));
+            ImGui::Begin("Welcome to Adventure RPG", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize);
             
-            char combatChoice;
-            std::cin >> combatChoice;
+            ImGui::Text("What is your name?");
+            ImGui::InputText("##name", nameBuffer, 128);
             
-            if (combatChoice == 'F' || combatChoice == 'f') {
-                // Player attacks
-                int damage = rand() % 5 + 1; // 1-5 damage
-                currentLocation->monster->hitPoints -= damage;
+            if (ImGui::Button("Start Adventure", ImVec2(120, 40))) {
+                if (strlen(nameBuffer) > 0) {
+                    playerName = std::string(nameBuffer);
+                    player = new Player(playerName);
+                    nameEntered = true;
+                }
+            }
+            
+            ImGui::End();
+        } else {
+            // Main game UI
+            
+            // Player Stats Window
+            ImGui::SetNextWindowPos(ImVec2(10, 10));
+            ImGui::SetNextWindowSize(ImVec2(300, 150));
+            ImGui::Begin("Player Stats", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize);
+            
+            ImGui::TextColored(ImVec4(0.4f, 1.0f, 1.0f, 1.0f), "Name: %s", player->name.c_str());
+            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "HP: %d", player->hitPoints);
+            ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.0f, 1.0f), "Gold: %d", player->gold);
+            
+            ImGui::End();
+            
+            // Location Window
+            ImGui::SetNextWindowPos(ImVec2(320, 10));
+            ImGui::SetNextWindowSize(ImVec2(600, 200));
+            ImGui::Begin("Location", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize);
+            
+            ImGui::TextColored(ImVec4(0.4f, 1.0f, 1.0f, 1.0f), "%s", currentLocation->name.c_str());
+            ImGui::Separator();
+            ImGui::TextWrapped("%s", currentLocation->description.c_str());
+            
+            if (currentLocation->monster && currentLocation->monster->IsAlive()) {
+                ImGui::Separator();
+                ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f), "DANGER: %s blocks your path!", 
+                                 currentLocation->monster->name.c_str());
+                ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f), "HP: %d", 
+                                 currentLocation->monster->hitPoints);
+            }
+            
+            ImGui::End();
+            
+            // Actions Window
+            ImGui::SetNextWindowPos(ImVec2(930, 10));
+            ImGui::SetNextWindowSize(ImVec2(340, 300));
+            ImGui::Begin("Actions", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize);
+            
+            // Combat actions
+            if (currentLocation->monster && currentLocation->monster->IsAlive()) {
+                ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f), "COMBAT");
+                ImGui::Separator();
                 
-                UI::ClearScreen();
-                currentLocation->Display();
-                UI::PrintCombatMessage("You hit the " + currentLocation->monster->name + 
-                                     " for " + std::to_string(damage) + " damage!");
-                
-                if (currentLocation->monster->IsAlive()) {
-                    // Monster attacks back
-                    int monsterDamage = rand() % currentLocation->monster->maxDamage + 1;
-                    player.hitPoints -= monsterDamage;
-                    UI::PrintCombatMessage("The " + currentLocation->monster->name + 
-                                         " hits you for " + std::to_string(monsterDamage) + " damage!");
+                if (ImGui::Button("Fight", ImVec2(150, 40))) {
+                    int damage = rand() % 5 + 1;
+                    currentLocation->monster->hitPoints -= damage;
+                    combatLog = "You hit the " + currentLocation->monster->name + 
+                               " for " + std::to_string(damage) + " damage!\n";
                     
-                    if (player.hitPoints <= 0) {
-                        std::cout << "\n";
-                        UI::PrintErrorMessage("YOU DIED!");
-                        std::cout << UI::RED << UI::BOLD << "\nGAME OVER!" << UI::RESET << std::endl;
-                        playing = false;
+                    if (currentLocation->monster->IsAlive()) {
+                        int monsterDamage = rand() % currentLocation->monster->maxDamage + 1;
+                        player->hitPoints -= monsterDamage;
+                        combatLog += "The " + currentLocation->monster->name + 
+                                   " hits you for " + std::to_string(monsterDamage) + " damage!";
+                        
+                        if (player->hitPoints <= 0) {
+                            combatLog += "\n\nYOU DIED! Game Over.";
+                        }
+                    } else {
+                        combatLog += "You defeated the " + currentLocation->monster->name + "!\n";
+                        player->gold += currentLocation->monster->rewardGold;
+                        combatLog += "You found " + std::to_string(currentLocation->monster->rewardGold) + " gold!";
                     }
-                } else {
-                    std::cout << "\n";
-                    UI::PrintSuccessMessage("You defeated the " + currentLocation->monster->name + "!");
-                    player.gold += currentLocation->monster->rewardGold;
-                    UI::PrintSuccessMessage("You found " + std::to_string(currentLocation->monster->rewardGold) + " gold!");
                 }
                 
-                player.DisplayStats();
-                std::cout << "\n" << UI::CYAN << "Press Enter to continue..." << UI::RESET;
-                std::cin.ignore();
-                std::cin.get();
-                continue;
-            } else if (combatChoice == 'R' || combatChoice == 'r') {
-                UI::PrintErrorMessage("You run away!");
-                currentLocation = &home;
-                std::cout << "\n" << UI::CYAN << "Press Enter to continue..." << UI::RESET;
-                std::cin.ignore();
-                std::cin.get();
-                continue;
+                if (ImGui::Button("Run Away", ImVec2(150, 40))) {
+                    currentLocation = &home;
+                    combatLog = "You ran away to safety!";
+                }
+            } else {
+                // Movement actions
+                ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "MOVEMENT");
+                ImGui::Separator();
+                
+                if (currentLocation->north && ImGui::Button("Go North", ImVec2(150, 40))) {
+                    currentLocation = currentLocation->north;
+                    combatLog = "";
+                }
+                
+                if (currentLocation->south && ImGui::Button("Go South", ImVec2(150, 40))) {
+                    currentLocation = currentLocation->south;
+                    combatLog = "";
+                }
+                
+                if (currentLocation->east && ImGui::Button("Go East", ImVec2(150, 40))) {
+                    currentLocation = currentLocation->east;
+                    combatLog = "";
+                }
+                
+                if (currentLocation->west && ImGui::Button("Go West", ImVec2(150, 40))) {
+                    currentLocation = currentLocation->west;
+                    combatLog = "";
+                }
             }
+            
+            ImGui::Separator();
+            ImGui::Spacing();
+            
+            // Quit button (always visible)
+            if (ImGui::Button("Quit Game", ImVec2(150, 40))) {
+                running = false;
+            }
+            
+            ImGui::End();
+            
+            // Combat Log Window
+            ImGui::SetNextWindowPos(ImVec2(320, 220));
+            ImGui::SetNextWindowSize(ImVec2(600, 200));
+            ImGui::Begin("Messages", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize);
+            
+            ImGui::TextWrapped("%s", combatLog.c_str());
+            
+            ImGui::End();
         }
         
-        // Normal movement
-        std::cout << "\n" << UI::GREEN << UI::BOLD << "═══ ACTIONS ═══" << UI::RESET << std::endl;
-        if (currentLocation->north) std::cout << UI::YELLOW << "N" << UI::RESET << " - North\n";
-        if (currentLocation->south) std::cout << UI::YELLOW << "S" << UI::RESET << " - South\n";
-        if (currentLocation->east) std::cout << UI::YELLOW << "E" << UI::RESET << " - East\n";
-        if (currentLocation->west) std::cout << UI::YELLOW << "W" << UI::RESET << " - West\n";
-        std::cout << UI::YELLOW << "Q" << UI::RESET << " - Quit\n";
-        
-        std::cout << "\n" << UI::CYAN << "Choice: " << UI::RESET;
-        char choice;
-        std::cin >> choice;
-        
-        if (choice == 'N' || choice == 'n') {
-            if (currentLocation->north) {
-                currentLocation = currentLocation->north;
-            } else {
-                UI::PrintErrorMessage("You can't go that way!");
-                std::cout << "\n" << UI::CYAN << "Press Enter to continue..." << UI::RESET;
-                std::cin.ignore();
-                std::cin.get();
-            }
-        } else if (choice == 'S' || choice == 's') {
-            if (currentLocation->south) {
-                currentLocation = currentLocation->south;
-            } else {
-                UI::PrintErrorMessage("You can't go that way!");
-                std::cout << "\n" << UI::CYAN << "Press Enter to continue..." << UI::RESET;
-                std::cin.ignore();
-                std::cin.get();
-            }
-        } else if (choice == 'E' || choice == 'e') {
-            if (currentLocation->east) {
-                currentLocation = currentLocation->east;
-            } else {
-                UI::PrintErrorMessage("You can't go that way!");
-                std::cout << "\n" << UI::CYAN << "Press Enter to continue..." << UI::RESET;
-                std::cin.ignore();
-                std::cin.get();
-            }
-        } else if (choice == 'W' || choice == 'w') {
-            if (currentLocation->west) {
-                currentLocation = currentLocation->west;
-            } else {
-                UI::PrintErrorMessage("You can't go that way!");
-                std::cout << "\n" << UI::CYAN << "Press Enter to continue..." << UI::RESET;
-                std::cin.ignore();
-                std::cin.get();
-            }
-        } else if (choice == 'Q' || choice == 'q') {
-            UI::ClearScreen();
-            UI::PrintHeader("THANKS FOR PLAYING!");
-            playing = false;
-        }
+        // Rendering
+        ImGui::Render();
+        SDL_SetRenderDrawColor(renderer, 20, 20, 30, 255);
+        SDL_RenderClear(renderer);
+        ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer);
+        SDL_RenderPresent(renderer);
     }
+    
+    // Cleanup
+    if (player) delete player;
+    ImGui_ImplSDLRenderer2_Shutdown();
+    ImGui_ImplSDL2_Shutdown();
+    ImGui::DestroyContext();
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+    SDL_Quit();
     
     return 0;
 }
