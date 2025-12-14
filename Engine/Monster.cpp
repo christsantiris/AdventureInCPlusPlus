@@ -7,6 +7,7 @@ Monster::Monster(std::string monsterName, int hp, int damage, int gold) {
     hitPoints = hp;
     maxDamage = damage;
     rewardGold = gold;
+    lootItem = nullptr;
 }
 
 void Monster::Display() {

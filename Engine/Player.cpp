@@ -1,6 +1,7 @@
 #include "Player.h"
 #include "UI.h"
 #include <iostream>
+#include <algorithm>
 
 Player::Player(std::string playerName) {
     name = playerName;
@@ -14,4 +15,18 @@ void Player::DisplayStats() {
     std::cout << UI::GREEN << "HP:   " << UI::RESET << hitPoints << std::endl;
     std::cout << UI::YELLOW << "Gold: " << UI::RESET << gold << std::endl;
     UI::PrintSeparator();
+}
+
+void Player::AddItem(Item* item) {
+    inventory.push_back(item);
+}
+
+bool Player::HasItem(int itemId) {
+    return std::any_of(inventory.begin(), inventory.end(),
+        [itemId](Item* item) { return item->id == itemId; });
+}
+
+int Player::GetItemCount(int itemId) {
+    return std::count_if(inventory.begin(), inventory.end(),
+        [itemId](Item* item) { return item->id == itemId; });
 }

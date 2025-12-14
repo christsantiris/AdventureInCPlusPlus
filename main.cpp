@@ -5,9 +5,11 @@
 #include <string>
 #include <cstdlib>
 #include <ctime>
+#include <map>
 #include "Player.h"
 #include "Location.h"
 #include "Monster.h"
+#include "Item.h"
 
 int main(int argc, char* argv[]) {
     srand(time(0));
@@ -47,13 +49,19 @@ int main(int argc, char* argv[]) {
     
     Player* player = nullptr;
     
+    // Create items
+    Item ratTail(1, "Rat Tail", 5);
+    Item snakeFang(2, "Snake Fang", 10);
+    Item healthPotion(3, "Health Potion", 15);
+    
     // Create locations
     Location home("Home", "Your cozy house. You're bored and ready for adventure.");
     Location townSquare("Town Square", "The bustling center of town. You see a fountain and some shops.");
     Location forest("Forest", "A dark forest. You hear strange noises.");
     
-    // Create monster
+    // Create monsters
     Monster rat("Rat", 5, 3, 5);
+    rat.lootItem = &ratTail;
     
     // Link locations
     home.north = &townSquare;
@@ -115,6 +123,37 @@ int main(int argc, char* argv[]) {
             
             ImGui::End();
             
+            // Inventory Window
+            ImGui::SetNextWindowPos(ImVec2(10, 170));
+            ImGui::SetNextWindowSize(ImVec2(300, 250));
+            ImGui::Begin("Inventory", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize);
+            
+            if (player->inventory.empty()) {
+                ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "Empty");
+            } else {
+                // Count items
+                std::map<int, int> itemCounts;
+                for (Item* item : player->inventory) {
+                    itemCounts[item->id]++;
+                }
+                
+                // Display unique items with counts
+                for (auto& pair : itemCounts) {
+                    Item* item = nullptr;
+                    for (Item* i : player->inventory) {
+                        if (i->id == pair.first) {
+                            item = i;
+                            break;
+                        }
+                    }
+                    if (item) {
+                        ImGui::BulletText("%s x%d", item->name.c_str(), pair.second);
+                    }
+                }
+            }
+            
+            ImGui::End();
+            
             // Location Window
             ImGui::SetNextWindowPos(ImVec2(320, 10));
             ImGui::SetNextWindowSize(ImVec2(600, 200));
@@ -163,6 +202,12 @@ int main(int argc, char* argv[]) {
                         combatLog += "You defeated the " + currentLocation->monster->name + "!\n";
                         player->gold += currentLocation->monster->rewardGold;
                         combatLog += "You found " + std::to_string(currentLocation->monster->rewardGold) + " gold!";
+                        
+                        // Drop loot
+                        if (currentLocation->monster->lootItem) {
+                            player->AddItem(currentLocation->monster->lootItem);
+                            combatLog += "\nYou looted: " + currentLocation->monster->lootItem->name;
+                        }
                     }
                 }
                 
