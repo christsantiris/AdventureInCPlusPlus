@@ -10,6 +10,7 @@
 #include "Location.h"
 #include "Monster.h"
 #include "Item.h"
+#include "Weapon.h"
 
 int main(int argc, char* argv[]) {
     srand(time(0));
@@ -54,9 +55,13 @@ int main(int argc, char* argv[]) {
     Item snakeFang(2, "Snake Fang", 10);
     Item healthPotion(3, "Health Potion", 15);
     
+    // Create weapons
+    Weapon rustySword(10, "Rusty Sword", 10, 2, 5);
+    Weapon club(11, "Club", 15, 3, 6);
+    
     // Create locations
-    Location home("Home", "Your cozy house. You're bored and ready for adventure.");
-    Location townSquare("Town Square", "The bustling center of town. You see a fountain and some shops.");
+    Location home("Home", "You awake determined to begin the adventure you have been planning.");
+    Location townSquare("Town Square", "There is a lot of activity. You see a fountain and some shops.");
     Location forest("Forest", "A dark forest. You hear strange noises.");
     
     // Create monsters
@@ -104,6 +109,9 @@ int main(int argc, char* argv[]) {
                 if (strlen(nameBuffer) > 0) {
                     playerName = std::string(nameBuffer);
                     player = new Player(playerName);
+                    // Give player starting weapon
+                    player->AddItem(&rustySword);
+                    player->equippedWeapon = &rustySword;
                     nameEntered = true;
                 }
             }
@@ -114,17 +122,29 @@ int main(int argc, char* argv[]) {
             
             // Player Stats Window
             ImGui::SetNextWindowPos(ImVec2(10, 10));
-            ImGui::SetNextWindowSize(ImVec2(300, 150));
+            ImGui::SetNextWindowSize(ImVec2(300, 180));
             ImGui::Begin("Player Stats", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize);
             
             ImGui::TextColored(ImVec4(0.4f, 1.0f, 1.0f, 1.0f), "Name: %s", player->name.c_str());
             ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "HP: %d", player->hitPoints);
             ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.0f, 1.0f), "Gold: %d", player->gold);
             
+            ImGui::Separator();
+            
+            if (player->equippedWeapon) {
+                ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.2f, 1.0f), "Weapon: %s", player->equippedWeapon->name.c_str());
+                ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f), "Damage: %d-%d", 
+                                 player->equippedWeapon->minDamage, 
+                                 player->equippedWeapon->maxDamage);
+            } else {
+                ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "Weapon: Bare Hands");
+                ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "Damage: 1-3");
+            }
+            
             ImGui::End();
             
             // Inventory Window
-            ImGui::SetNextWindowPos(ImVec2(10, 170));
+            ImGui::SetNextWindowPos(ImVec2(10, 200));
             ImGui::SetNextWindowSize(ImVec2(300, 250));
             ImGui::Begin("Inventory", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize);
             
@@ -147,7 +167,13 @@ int main(int argc, char* argv[]) {
                         }
                     }
                     if (item) {
-                        ImGui::BulletText("%s x%d", item->name.c_str(), pair.second);
+                        // Check if it's the equipped weapon
+                        bool isEquipped = (player->equippedWeapon && item->id == player->equippedWeapon->id);
+                        if (isEquipped) {
+                            ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.0f, 1.0f), "[E] %s x%d", item->name.c_str(), pair.second);
+                        } else {
+                            ImGui::BulletText("%s x%d", item->name.c_str(), pair.second);
+                        }
                     }
                 }
             }
@@ -184,7 +210,7 @@ int main(int argc, char* argv[]) {
                 ImGui::Separator();
                 
                 if (ImGui::Button("Fight", ImVec2(150, 40))) {
-                    int damage = rand() % 5 + 1;
+                    int damage = player->GetAttackDamage();
                     currentLocation->monster->hitPoints -= damage;
                     combatLog = "You hit the " + currentLocation->monster->name + 
                                " for " + std::to_string(damage) + " damage!\n";

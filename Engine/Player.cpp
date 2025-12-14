@@ -2,11 +2,13 @@
 #include "UI.h"
 #include <iostream>
 #include <algorithm>
+#include <cstdlib>
 
 Player::Player(std::string playerName) {
     name = playerName;
     hitPoints = 10;
     gold = 20;
+    equippedWeapon = nullptr;
 }
 
 void Player::DisplayStats() {
@@ -29,4 +31,11 @@ bool Player::HasItem(int itemId) {
 int Player::GetItemCount(int itemId) {
     return std::count_if(inventory.begin(), inventory.end(),
         [itemId](Item* item) { return item->id == itemId; });
+}
+
+int Player::GetAttackDamage() {
+    if (equippedWeapon) {
+        return equippedWeapon->minDamage + (rand() % (equippedWeapon->maxDamage - equippedWeapon->minDamage + 1));
+    }
+    return 1 + (rand() % 3); // 1-3 damage with bare hands
 }
